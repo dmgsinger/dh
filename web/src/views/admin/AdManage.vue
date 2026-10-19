@@ -70,12 +70,21 @@ async function handleAddAd() {
   loadAds();
 }
 async function updateAd(ad) {
-  await apiUpdateAd(ad.id, { img: ad.img, url: ad.url });
-  loadAds();
+  try {
+    await apiUpdateAd(ad.id, { position: ad.position, img: ad.img, url: ad.url });
+    await loadAds();
+  } catch (err) {
+    alert('保存失败：' + (err.response?.data?.error || err.message));
+  }
 }
 async function deleteAd(id) {
-  await apiDeleteAd(id);
-  loadAds();
+  if (!confirm('确定要删除这条广告吗？')) return;
+  try {
+    await apiDeleteAd(id);
+    await loadAds();
+  } catch (err) {
+    alert('删除失败：' + (err.response?.data?.error || err.message));
+  }
 }
 </script>
 

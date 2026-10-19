@@ -2,8 +2,9 @@
   <div class="container card-grid" :class="animationClass">
     <div v-for="(card, index) in cards" :key="card.id" 
          class="link-item" 
+         :data-card-id="card.id"
          :style="getCardStyle(index)">
-      <a :href="card.url" target="_blank" :title="getTooltip(card)">
+      <a :href="card.url" target="_blank" rel="noopener noreferrer" :title="getTooltip(card)">
         <img class="link-icon" :src="getLogo(card)" alt="" @error="onImgError($event, card)" loading="lazy">
         <span class="link-text">{{ truncate(card.title) }}</span>
       </a>
@@ -120,9 +121,9 @@ function getCardStyle(index) {
 }
 
 function getLogo(card) {
-  if (card.custom_logo_path) return 'http://localhost:3000/uploads/' + card.custom_logo_path;
+  // 后端已经算好 display_logo（自定义图标 / logo_url / 站点 favicon）
+  if (card.display_logo) return card.display_logo;
   if (card.logo_url) return card.logo_url;
-  // 默认 favicon
   try {
     const url = new URL(card.url);
     return url.origin + '/favicon.ico';
@@ -131,7 +132,7 @@ function getLogo(card) {
   }
 }
 
-function onImgError(e, card) {
+function onImgError(e) {
   e.target.src = '/default-favicon.png';
 }
 

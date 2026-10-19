@@ -1,53 +1,76 @@
 import axios from 'axios';
-const BASE = '/api';
 
-export const login = (username, password) => axios.post(`${BASE}/login`, { username, password });
+const http = axios.create({
+  baseURL: '/api',
+  timeout: 15000
+});
 
 function authHeaders() {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// 菜单相关API
-export const getMenus = () => axios.get(`${BASE}/menus`);
-export const addMenu = (data) => axios.post(`${BASE}/menus`, data, { headers: authHeaders() });
-export const updateMenu = (id, data) => axios.put(`${BASE}/menus/${id}`, data, { headers: authHeaders() });
-export const deleteMenu = (id) => axios.delete(`${BASE}/menus/${id}`, { headers: authHeaders() });
+// token 失效时统一跳回登录页，避免后台"看起来还登录着"但操作全部失败
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // 登录接口自身的 401 是"密码错误"，不能触发刷新
+    const isLoginRequest = String(error.config?.url || '').includes('/login');
+    if (error.response?.status === 401 && !isLoginRequest) {
+      localStorage.removeItem('token');
+      if (window.location.pathname.startsWith('/admin')) {
+        window.location.reload();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
-// 子菜单相关API
-export const getSubMenus = (menuId) => axios.get(`${BASE}/menus/${menuId}/submenus`);
-export const addSubMenu = (menuId, data) => axios.post(`${BASE}/menus/${menuId}/submenus`, data, { headers: authHeaders() });
-export const updateSubMenu = (id, data) => axios.put(`${BASE}/menus/submenus/${id}`, data, { headers: authHeaders() });
-export const deleteSubMenu = (id) => axios.delete(`${BASE}/menus/submenus/${id}`, { headers: authHeaders() });
+// 登录
+export const login = (username, password) => http.post('/login', { username, password });
 
-// 卡片相关API
-export const getCards = (menuId, subMenuId = null) => {
-  const params = subMenuId ? { subMenuId } : {};
-  return axios.get(`${BASE}/cards/${menuId}`, { params });
-};
-export const addCard = (data) => axios.post(`${BASE}/cards`, data, { headers: authHeaders() });
-export const updateCard = (id, data) => axios.put(`${BASE}/cards/${id}`, data, { headers: authHeaders() });
-export const deleteCard = (id) => axios.delete(`${BASE}/cards/${id}`, { headers: authHeaders() });
+// 菜单
+export const getMenus = () => http.get('/menus');
+export const addMenu = (data) => http.post('/menus', data, { headers: authHeaders() });
+export const updateMenu = (id, data) => http.put(`/menus/${id}`, data, { headers: authHeaders() });
+export const deleteMenu = (id) => http.delete(`/menus/${id}`, { headers: authHeaders() });
 
+// 子菜单
+export const getSubMenus = (menuId) => http.get(`/menus/${menuId}/submenus`);
+export const addSubMenu = (menuId, data) => http.post(`/menus/${menuId}/submenus`, data, { headers: authHeaders() });
+export const updateSubMenu = (id, data) => http.put(`/menus/submenus/${id}`, data, { headers: authHeaders() });
+export const deleteSubMenu = (id) => http.delete(`/menus/submenus/${id}`, { headers: authHeaders() });
+
+// 卡片
+export const getCards = (menuId, subMenuId = null) =>
+  http.get(`/cards/${menuId}`, { params: subMenuId ? { subMenuId } : {} });
+export const searchCards = (keyword) => http.get('/cards/search', { params: { q: keyword } });
+export const addCard = (data) => http.post('/cards', data, { headers: authHeaders() });
+export const updateCard = (id, data) => http.put(`/cards/${id}`, data, { headers: authHeaders() });
+export const deleteCard = (id) => http.delete(`/cards/${id}`, { headers: authHeaders() });
+
+// 图标上传
 export const uploadLogo = (file) => {
   const formData = new FormData();
   formData.append('logo', file);
-  return axios.post(`${BASE}/upload`, formData, { headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' } });
+  return http.post('/upload', formData, { headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' } });
 };
 
-// 广告API
-export const getAds = () => axios.get(`${BASE}/ads`);
-export const addAd = (data) => axios.post(`${BASE}/ads`, data, { headers: authHeaders() });
-export const updateAd = (id, data) => axios.put(`${BASE}/ads/${id}`, data, { headers: authHeaders() });
-export const deleteAd = (id) => axios.delete(`${BASE}/ads/${id}`, { headers: authHeaders() });
+// 广告
+export const getAds = () => http.get('/ads');
+export const addAd = (data) => http.post('/ads', data, { headers: authHeaders() });
+export const updateAd = (id, data) => http.put(`/ads/${id}`, data, { headers: authHeaders() });
+export const deleteAd = (id) => http.delete(`/ads/${id}`, { headers: authHeaders() });
 
-// 友链API
-export const getFriends = () => axios.get(`${BASE}/friends`);
-export const addFriend = (data) => axios.post(`${BASE}/friends`, data, { headers: authHeaders() });
-export const updateFriend = (id, data) => axios.put(`${BASE}/friends/${id}`, data, { headers: authHeaders() });
-export const deleteFriend = (id) => axios.delete(`${BASE}/friends/${id}`, { headers: authHeaders() });
+// 友链
+export const getFriends = () => http.get('/friends');
+export const addFriend = (data) => http.post('/friends', data, { headers: authHeaders() });
+export const updateFriend = (id, data) => http.put(`/friends/${id}`, data, { headers: authHeaders() });
+export const deleteFriend = (id) => http.delete(`/friends/${id}`, { headers: authHeaders() });
 
-// 用户API
-export const getUserProfile = () => axios.get(`${BASE}/users/profile`, { headers: authHeaders() });
-export const changePassword = (oldPassword, newPassword) => axios.put(`${BASE}/users/password`, { oldPassword, newPassword }, { headers: authHeaders() });
-export const getUsers = () => axios.get(`${BASE}/users`, { headers: authHeaders() }); 
+// 用户
+export const getUserProfile = () => http.get('/users/profile', { headers: authHeaders() });
+export const getMe = () => http.get('/users/me', { headers: authHeaders() });
+export const changePassword = (oldPassword, newPassword) =>
+  http.put('/users/password', { oldPassword, newPassword }, { headers: authHeaders() });
+export const getUsers = () => http.get('/users', { headers: authHeaders() });

@@ -1,27 +1,30 @@
 {
   "name": "nav-item-backend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "eooce",
-  "description": "nav-item-backend",
+  "contributors": [
+    "dmgsinger"
+  ],
+  "description": "nav-item 个人导航站后端",
   "repository": "https://github.com/eooce/nav-item",
-  "license": "MIT",
+  "license": "Apache-2.0",
+  "private": true,
   "main": "app.js",
   "scripts": {
-    "dev": "node app.js",
-    "start": "node app.js"
+    "start": "node app.js",
+    "dev": "node --watch app.js",
+    "build:web": "npm --prefix web install && npm --prefix web run build"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "sqlite3": "^5.1.6"
+    "multer": "^2.0.2",
+    "sqlite3": "^5.1.7"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=20"
   }
 }

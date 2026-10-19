@@ -39,7 +39,15 @@
           <tr v-for="card in cards" :key="card.id">
             <td><input v-model="card.title" @blur="updateCard(card)" class="table-input" /></td>
             <td><input v-model="card.url" @blur="updateCard(card)" class="table-input" /></td>
-            <td><input v-model="card.logo_url" @blur="updateCard(card)" class="table-input" placeholder="logo链接(可选)" /></td>
+            <td>
+              <div class="logo-cell">
+                <input v-model="card.logo_url" @input="onLogoUrlInput(card)" @blur="updateCard(card)" class="table-input" placeholder="logo链接(可选)" />
+                <button class="btn btn-sm" type="button" :disabled="uploading" @click="pickLogo(card)" title="上传本地图标">
+                  上传
+                </button>
+                <img v-if="card.display_logo" :src="card.display_logo" class="logo-preview" alt="" />
+              </div>
+            </td>
             <td><input v-model="card.desc" @blur="updateCard(card)" class="table-input" placeholder="描述（可选）" /></td>
             <td><input v-model.number="card.order" type="number" @blur="updateCard(card)" class="table-input order-input" /></td>
             <td>
@@ -54,17 +62,26 @@
         </tbody>
       </table>
     </div>
+
+    <input
+      ref="fileInput"
+      type="file"
+      accept=".png,.jpg,.jpeg,.webp,.gif,.ico,image/*"
+      class="hidden-input"
+      @change="onFilePicked"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
-import { 
-  getMenus, 
-  getCards, 
-  addCard as apiAddCard, 
-  updateCard as apiUpdateCard, 
-  deleteCard as apiDeleteCard 
+import {
+  getMenus,
+  getCards,
+  addCard as apiAddCard,
+  updateCard as apiUpdateCard,
+  deleteCard as apiDeleteCard,
+  uploadLogo
 } from '../../api';
 
 const menus = ref([]);
@@ -74,6 +91,9 @@ const selectedSubMenuId = ref('');
 const newCardTitle = ref('');
 const newCardUrl = ref('');
 const newCardLogo = ref('');
+const fileInput = ref(null);
+const uploadTarget = ref(null);
+const uploading = ref(false);
 
 const currentSubMenus = computed(() => {
   if (!selectedMenuId.value) return [];
@@ -127,21 +147,60 @@ async function addCard() {
 }
 
 async function updateCard(card) {
-  await apiUpdateCard(card.id, {
-    menu_id: selectedMenuId.value,
-    sub_menu_id: selectedSubMenuId.value || null,
-    title: card.title,
-    url: card.url,
-    logo_url: card.logo_url,
-    desc: card.desc,
-    order: card.order
-  });
-  loadCards();
+  try {
+    await apiUpdateCard(card.id, {
+      menu_id: selectedMenuId.value,
+      sub_menu_id: selectedSubMenuId.value || null,
+      title: card.title,
+      url: card.url,
+      logo_url: card.logo_url || null,
+      custom_logo_path: card.custom_logo_path || null,
+      desc: card.desc,
+      order: card.order
+    });
+    await loadCards();
+  } catch (err) {
+    alert('保存失败：' + (err.response?.data?.error || err.message));
+  }
+}
+
+// 手动填了 logo 链接，就清掉之前上传的本地图标
+function onLogoUrlInput(card) {
+  card.custom_logo_path = null;
+}
+
+function pickLogo(card) {
+  uploadTarget.value = card;
+  fileInput.value?.click();
+}
+
+async function onFilePicked(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file || !uploadTarget.value) return;
+
+  uploading.value = true;
+  try {
+    const { data } = await uploadLogo(file);
+    uploadTarget.value.custom_logo_path = data.filename;
+    uploadTarget.value.logo_url = '';
+    await updateCard(uploadTarget.value);
+  } catch (err) {
+    alert('上传失败：' + (err.response?.data?.error || err.message));
+  } finally {
+    uploading.value = false;
+    uploadTarget.value = null;
+  }
 }
 
 async function deleteCard(id) {
-  await apiDeleteCard(id);
-  loadCards();
+  if (!confirm('确定要删除这张卡片吗？')) return;
+  try {
+    await apiDeleteCard(id);
+    await loadCards();
+  } catch (err) {
+    alert('删除失败：' + (err.response?.data?.error || err.message));
+  }
 }
 </script>
 
@@ -322,6 +381,41 @@ async function deleteCard(id) {
   padding: 0;
   justify-content: center;
   border-radius: 6px;
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.logo-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logo-cell .table-input {
+  min-width: 90px;
+}
+
+.logo-preview {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.hidden-input {
+  display: none;
 }
 
 .btn:hover {

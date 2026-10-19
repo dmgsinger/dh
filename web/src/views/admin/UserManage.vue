@@ -63,8 +63,8 @@ async function handleChangePassword() {
     return;
   }
   
-  if (newPassword.value.length < 6) {
-    showMessage('新密码长度至少6位', 'error');
+  if (newPassword.value.length < 8) {
+    showMessage('新密码长度至少 8 位', 'error');
     return;
   }
   

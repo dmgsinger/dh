@@ -1,0 +1,16 @@
+node_modules
+web/node_modules
+web/dist
+database
+data
+uploads
+.git
+.github
+assets
+.vscode
+.idea
+*.md
+!README.md
+.env
+.env.*
+*.log

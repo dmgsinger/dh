@@ -52,7 +52,7 @@
       </a>
     </div>
     
-    <CardGrid :cards="filteredCards"/>
+    <CardGrid :cards="cards"/>
     
     <footer class="footer">
       <div class="footer-content">
@@ -63,7 +63,7 @@
           </svg>
           友情链接
         </button>
-        <p class="copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a></p>
+        <p class="copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/nav-item" target="_blank" rel="noopener" class="footer-link">Based on eooce/nav-item</a></p>
       </div>
     </footer>
 
@@ -110,8 +110,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { getMenus, getCards, getAds, getFriends } from '../api';
+import { ref, onMounted } from 'vue';
+import { getMenus, getCards, getAds, getFriends, searchCards } from '../api';
 import MenuBar from '../components/MenuBar.vue';
 import CardGrid from '../components/CardGrid.vue';
 
@@ -154,8 +154,7 @@ const searchEngines = [
   {
     name: 'site',
     label: '站内',
-    placeholder: '站内搜索...',
-    url: q => `/search?query=${encodeURIComponent(q)}`
+    placeholder: '站内搜索...'
   }
 ];
 const selectedEngine = ref(searchEngines[0]);
@@ -168,28 +167,32 @@ function clearSearch() {
   searchQuery.value = '';
 }
 
-const filteredCards = computed(() => {
-  if (!searchQuery.value) return cards.value;
-  return cards.value.filter(card => 
-    card.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    card.url.toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
-});
-
 onMounted(async () => {
-  const res = await getMenus();
-  menus.value = res.data;
-  if (menus.value.length) {
-    activeMenu.value = menus.value[0];
-    loadCards();
+  try {
+    const res = await getMenus();
+    menus.value = res.data;
+    if (menus.value.length) {
+      activeMenu.value = menus.value[0];
+      await loadCards();
+    }
+  } catch (err) {
+    console.error('加载栏目失败', err);
   }
-  // 加载广告
-  const adRes = await getAds();
-  leftAds.value = adRes.data.filter(ad => ad.position === 'left');
-  rightAds.value = adRes.data.filter(ad => ad.position === 'right');
-  
-  const friendRes = await getFriends();
-  friendLinks.value = friendRes.data;
+
+  try {
+    const adRes = await getAds();
+    leftAds.value = adRes.data.filter(ad => ad.position === 'left');
+    rightAds.value = adRes.data.filter(ad => ad.position === 'right');
+  } catch (err) {
+    console.error('加载广告失败', err);
+  }
+
+  try {
+    const friendRes = await getFriends();
+    friendLinks.value = friendRes.data;
+  } catch (err) {
+    console.error('加载友链失败', err);
+  }
 });
 
 async function selectMenu(menu, parentMenu = null) {
@@ -207,38 +210,53 @@ async function selectMenu(menu, parentMenu = null) {
 
 async function loadCards() {
   if (!activeMenu.value) return;
-  const res = await getCards(activeMenu.value.id, activeSubMenu.value?.id);
-  cards.value = res.data;
+  try {
+    const res = await getCards(activeMenu.value.id, activeSubMenu.value?.id);
+    cards.value = res.data;
+  } catch (err) {
+    console.error('加载卡片失败', err);
+    cards.value = [];
+  }
 }
 
 async function handleSearch() {
-  if (!searchQuery.value.trim()) return;
-  if (selectedEngine.value.name === 'site') {
-    // 站内搜索：遍历所有菜单，查找所有卡片
-    let found = false;
-    for (const menu of menus.value) {
-      const res = await getCards(menu.id);
-      const match = res.data.find(card =>
-        card.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        card.url.toLowerCase().includes(searchQuery.value.toLowerCase())
-      );
-      if (match) {
-        activeMenu.value = menu;
-        cards.value = res.data;
-        setTimeout(() => {
-          const el = document.querySelector(`[data-card-id='${match.id}']`);
-          if (el) el.scrollIntoView({behavior: 'smooth', block: 'center'});
-        }, 100);
-        found = true;
-        break;
-      }
+  const keyword = searchQuery.value.trim();
+  if (!keyword) return;
+
+  if (selectedEngine.value.name !== 'site') {
+    window.open(selectedEngine.value.url(keyword), '_blank', 'noopener');
+    return;
+  }
+
+  // 站内搜索：一次请求覆盖所有栏目和子菜单
+  try {
+    const { data: matches } = await searchCards(keyword);
+    if (!matches.length) {
+      alert(`没有找到「${keyword}」相关的内容`);
+      return;
     }
-    if (!found) {
-      alert('未找到相关内容');
+
+    const first = matches[0];
+    const menuId = first.parent_menu_id ?? first.menu_id;
+    const menu = menus.value.find(item => item.id === menuId);
+    if (!menu) {
+      alert('匹配到的卡片所属栏目已不存在');
+      return;
     }
-  } else {
-    const url = selectedEngine.value.url(searchQuery.value);
-    window.open(url, '_blank');
+
+    activeMenu.value = menu;
+    activeSubMenu.value = first.sub_menu_id
+      ? (menu.subMenus || []).find(item => item.id === first.sub_menu_id) || null
+      : null;
+    await loadCards();
+
+    setTimeout(() => {
+      const el = document.querySelector(`[data-card-id='${first.id}']`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  } catch (err) {
+    console.error('站内搜索失败', err);
+    alert('站内搜索失败，请稍后再试');
   }
 }
 
@@ -341,7 +359,7 @@ function handleLogoError(event) {
 
 .home-container {
   min-height: 95vh;
-  background-image: url('https://main.ssss.nyc.mn/background.webp');
+  background-image: url('/background.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

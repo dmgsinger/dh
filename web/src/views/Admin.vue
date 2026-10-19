@@ -84,7 +84,7 @@
         <UserManage v-if="page==='user'" />
       </div>
       <footer class="admin-footer">
-        <p class="admin-copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a></p>
+        <p class="admin-copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/nav-item" target="_blank" rel="noopener" class="footer-link">Based on eooce/nav-item</a></p>
       </footer>
     </main>
   </div>
@@ -92,7 +92,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { login } from '../api';
+import { login, getMe } from '../api';
 import MenuManage from './admin/MenuManage.vue';
 import CardManage from './admin/CardManage.vue';
 import AdManage from './admin/AdManage.vue';
@@ -131,12 +131,9 @@ onMounted(() => {
 });
 async function fetchLastLoginInfo() {
   try {
-    const res = await fetch('/api/users/me', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
-    if (res.ok) {
-      const data = await res.json();
-      lastLoginTime.value = data.last_login_time || '';
-      lastLoginIp.value = data.last_login_ip || '';
-    }
+    const { data } = await getMe();
+    lastLoginTime.value = data.last_login_time || '';
+    lastLoginIp.value = data.last_login_ip || '';
   } catch (error) {
     console.error('获取用户信息失败:', error);
   }
