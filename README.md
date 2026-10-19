@@ -52,8 +52,8 @@
 ### 方式一：Docker Compose（推荐）
 
 ```bash
-git clone https://github.com/dmgsinger/nav-item.git
-cd nav-item
+git clone https://github.com/dmgsinger/dh.git
+cd dh
 cp .env.example .env      # 按需修改，ADMIN_PASSWORD 可留空自动生成
 docker compose up -d --build
 docker compose logs -f    # 首次启动会打印随机管理员密码
